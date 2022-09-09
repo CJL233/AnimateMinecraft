@@ -1,6 +1,6 @@
 # AnimateMinecraft
 
-Minecraft 3d动画制作
+[Minecraft 3d动画制作](https://github.com/CJL233/AnimateMinecraft)
 
 mcmod上的教程只能用markdown写，对于一个3d沙盒游戏来说还是太抽象了。比如机械动力中的思索功能（ponderjs）就十分直观，但可惜只能在mc中运行，不能在浏览器中发扬光大，
 所以我决定用Three.js封装一个MC动画的库。截至此项目创建，Three.js我只学了半个月，但生成几个方块还是绰绰有余的。
