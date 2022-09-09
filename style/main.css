@@ -1,0 +1,48 @@
+body{
+	margin: 0;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    background: #b2dfdb;
+}
+#info {
+    position: fixed;
+    min-width: 5rem;
+    max-width: 10rem;
+    background: rgb(252 252 252 / 0.73);
+    padding: 0.5rem 0.3rem;
+    border-radius: 0.25rem;
+    box-shadow: 1px 1px 5px #009688;
+	visibility: hidden;
+	font-family: system-ui;
+}
+#infoTitle {
+    border-bottom: 2px solid #009688;
+    margin-bottom: 0.25rem;
+    font-weight: bold;
+    color: #009688;
+}
+#infoContent {
+    text-indent: 1rem;
+	color: #333;
+}
+.imgInfo {
+    max-width: 90vw !important;
+}
+#imgInfo {
+    width: 50vh;
+    margin-top: 1rem;
+    max-width: 90vw;
+}
+a:visited {
+    color: inherit;
+}
+a {
+    color: inherit;
+}
+@media only screen and (orientation: portrait) {
+.imgInfo {
+    left: calc(5vw - 0.3rem) !important;
+	right: unset !important;
+}
+}
