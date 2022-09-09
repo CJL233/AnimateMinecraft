@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import {OrbitControls} from 'OrbitControls'
+import WebGL from 'WebGL'
 
 window.scene=new THREE.Scene();
 window.renderer=new THREE.WebGLRenderer({alpha:true});
@@ -29,7 +30,8 @@ function animate() {
 	controls.update();
 	renderer.render( scene, camera );
 }
-animate();
+if (WebGL.isWebGLAvailable())animate();
+else document.body.appendChild(WebGL.getWebGLErrorMessage());
 
 function Material(url, row=1, col=1){
 	this.row=row;
@@ -85,6 +87,7 @@ function appendChild(child){
 }
 function info(title='', content, url){
 	this.obj.info={title, content, url};
+	intersectObjects.push(this.obj);
 	return this;
 }
 function bindMethods(){
@@ -158,6 +161,7 @@ function Entity(size,material,attr){
 	}
 }
 
+const intersectObjects=[];
 function showInfo(){
 	const raycaster = new THREE.Raycaster(),
     	coords = new THREE.Vector2(),
@@ -171,7 +175,7 @@ function showInfo(){
 		coords.x = (e.clientX / dom.clientWidth) * 2 - 1;
         coords.y = -(e.clientY / dom.clientHeight) * 2 + 1;
 		raycaster.setFromCamera(coords, camera);
-		let firstClick=raycaster.intersectObjects(scene.children,false)[0];
+		let firstClick=raycaster.intersectObjects(intersectObjects, false)[0];
 		firstClick=firstClick?firstClick.object.info:null;
 		if(!(firstClick && firstClick.title)){info.style.visibility='hidden';return;}
 		info.innerHTML=`<div id='infoTitle'>◉&nbsp;${firstClick.title}</div><div id='infoContent'>${firstClick.content}</div>${firstClick.url?`<img id='imgInfo' src='${firstClick.url}'>`:''}`;
