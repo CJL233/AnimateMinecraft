@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import {OrbitControls} from './OrbitControls.js'
+import {OrbitControls} from 'OrbitControls'
 
 window.scene=new THREE.Scene();
 window.renderer=new THREE.WebGLRenderer({alpha:true});
