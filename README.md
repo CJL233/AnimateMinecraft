@@ -10,6 +10,13 @@ mcmod上的教程只能用markdown写，对于一个3d沙盒游戏来说还是�
 * 🔲 流畅运行动画； 
 
 ---
+# 示例
+* 红石自动化血魔法祭坛（极简版）
+  * [mcmod](https://www.mcmod.cn/post/2343.html)
+  * [AMC](https://cjl233.github.io/AnimateMinecraft/examples/altar/)
+
+
+---
 # 制作模型
 
 制作一个模型需要自制两个文件：
@@ -18,7 +25,7 @@ mcmod上的教程只能用markdown写，对于一个3d沙盒游戏来说还是�
 
 ## atlas.png
 
-首先需要准备许多相同尺寸的素材，如[img/texture/src/]中所示，再将这些素材依次排列到一张透明底的png上即可制成一张总的贴图文件atlas.png
+首先需要准备许多相同尺寸的素材，如[img/texture/src/](examples/altar/img/src)中所示，再将这些素材依次排列到一张透明底的png上即可制成一张总的贴图文件atlas.png
 
 ## index.js
 
