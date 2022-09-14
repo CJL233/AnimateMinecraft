@@ -36,8 +36,7 @@ else document.body.appendChild(WebGL.getWebGLErrorMessage());
 function Material(url, row=1, col=1){
 	this.row=row;
 	this.col=col;
-	if(url)this.map=new THREE.TextureLoader().load( url, texture=>{texture.magFilter=THREE.NearestFilter});
-	this.material=new THREE.MeshBasicMaterial( url?{map: this.map}: null);
+	this.material=new THREE.MeshBasicMaterial( url?{map: new THREE.TextureLoader().load( url, texture=>{texture.magFilter=THREE.NearestFilter})}: null);
 	this.material.setValues({color: 0xFFFFFF, alphaTest: 0.1
 		//, transparent: true, opacity: 1
 	});
@@ -47,7 +46,7 @@ function Material(url, row=1, col=1){
 	}
 	this.clone=function(attr={}){
 		const newObj=new this.constructor(null, this.row, this.col);
-		newObj.map=attr.map=this.map;
+		attr.map=this.material.map;
 		newObj.material.setValues(attr);
 		return newObj;
 	}
@@ -163,13 +162,7 @@ function Entity(size,material,attr){
 
 const intersectObjects=[];
 function showInfo(){
-	const raycaster = new THREE.Raycaster(),
-    	coords = new THREE.Vector2(),
-		dom=renderer.domElement,
-		info=document.createElement('div');
-	info.id='info';
-	document.body.appendChild(info);
-	dom.addEventListener('click',function (e){
+	function ClickToShow(e){
 		e.preventDefault();
 		info.innerHTML='';
 		coords.x = (e.clientX / dom.clientWidth) * 2 - 1;
@@ -178,16 +171,31 @@ function showInfo(){
 		let firstClick=raycaster.intersectObjects(intersectObjects, false)[0];
 		firstClick=firstClick?firstClick.object.info:null;
 		if(!(firstClick && firstClick.title)){info.style.visibility='hidden';return;}
-		info.innerHTML=`<div id='infoTitle'>◉&nbsp;${firstClick.title}</div><div id='infoContent'>${firstClick.content}</div>${firstClick.url?`<img id='imgInfo' src='${firstClick.url}'>`:''}`;
+		info.innerHTML=`<div id='infoTitle'>◉&nbsp;${firstClick.title}</div><div id='infoContent'>${firstClick.content||''}</div>${firstClick.url?`<img id='imgInfo' src='${firstClick.url}'>`:''}`;
 		info.style.visibility='visible';
 		info.style.top=coords.y>=0?50*(1-coords.y)+2+'vh':'unset';
 		info.style.bottom=coords.y<0?50*(1+coords.y)+2+'vh':'unset';
 		info.style.right=coords.x>=0?50*(1-coords.x)+2+'vw':'unset';
 		info.style.left=coords.x<0?50*(1+coords.x)+2+'vw':'unset';
 		info.className=firstClick.url?'imgInfo':'';
-	},false);
+	}
+	let raycaster = new THREE.Raycaster(),
+    	coords = new THREE.Vector2(),
+		dom=renderer.domElement,
+		info=document.createElement('div');
+	info.id='info';
+	document.body.appendChild(info);
+	dom.addEventListener('click',ClickToShow,false);
+	//console.log('show');
+	return function depose(){
+		//console.log('depose');
+		dom.removeEventListener('click',ClickToShow);
+		info.remove();
+		raycaster=coords=dom=info=null;
+	}
 }
 
 if(!String.prototype.link)String.prototype.link=function(url=''){return `<a href='${url}'>${this}</a>`}
+const CanvasTexture=THREE.CanvasTexture
 
-export {Block, Attachment, Entity, Material, showInfo}
+export {Block, Attachment, Entity, Material, showInfo, CanvasTexture}
