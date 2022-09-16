@@ -54,9 +54,9 @@ function Materials({state, changeState, tip}){
 					img.src=URL.createObjectURL(fileInput.files.item(i));
 					img.onload=()=>{
 						if(typeof index!=='number')
-						source.ctx.drawImage(img, source.count++%source.col*source.size, parseInt(source.count/source.col)*source.size);
+						source.ctx.drawImage(img, source.count%source.col*source.size, parseInt(source.count++/source.col)*source.size);
 						else
-						source.ctx.drawImage(img, index++%source.col*source.size, parseInt(index/source.col)*source.size);
+						source.ctx.drawImage(img, index%source.col*source.size, parseInt(index++/source.col)*source.size);
 						img.onload=null;
 						source.value.material.map.needsUpdate=true;
 					}
@@ -81,6 +81,7 @@ function Materials({state, changeState, tip}){
 						const obj={
 							name,
 							parent: val.name, 
+							attr: elem.querySelector('#attr').value,
 							value: val.value.clone(JSON.parse(elem.querySelector('#attr').value || '{}'))
 						}
 						window.varNames.add(name);
@@ -196,7 +197,7 @@ function Types({state, changeState, state2, tip}){
 			title: val.name,
 			inner: <form id='promptForm'>
 				类型：{val.type}<br />
-				尺寸：{elem.value=val.size.join(' x ')} <br />
+				尺寸：{val.size.join(' x ')} <br />
 				材质：{val.material}<br />
 				贴图UV：<input type='text' class='longInput' name='uv' ref={elem=>elem && (elem.value=val.uv.join('; '))} />
 			</form>,
@@ -207,7 +208,7 @@ function Types({state, changeState, state2, tip}){
 					if(uv.reduce((prev, curr)=>prev || isNaN(curr[0]) || isNaN(curr[1]),false)){alert('数据格式有误');return}
 					val.uv=uv;
 					const newUV=state2.get(val.material).value.getUV(uv);
-					val.value=AMC[val.type](size, newUV);
+					val.value=AMC[val.type](val.size, newUV);
 					val.children.forEach(v=>{
 						v.value.obj.geometry.attributes.uv.array=newUV;
 						v.value.obj.geometry.attributes.uv.needsUpdate=true;
@@ -357,14 +358,14 @@ function Info({state, changeState}){
 	</div>
 }
 
-function Images({tip}){
+function Images({state, changeState, tip}){
     function Create(){
         const fileInput=document.createElement('input');
 			fileInput.type='file';
 			fileInput.accept='image/*';
 			fileInput.onchange=function(){
-				_image.push(URL.createObjectURL(fileInput.files.item(0)));
-                __image(_image.slice());
+				state.push(URL.createObjectURL(fileInput.files.item(0)));
+                changeState(state.slice());
 				fileInput.onchange=null;
 			}
 			fileInput.click();
@@ -373,38 +374,119 @@ function Images({tip}){
         const i=Number(target.getAttribute('data-index'));
         tip({
             title: `Image_${i}`,
-            inner: [<img style={{width:'100%'}} src={_image[i]} />, <br />,'图片URL：' , <input type='url' className='longInput' value={_image[i]} onClick={({target})=>target.select()} />],
+            inner: [<img style={{width:'100%'}} src={state[i]} />, <br />,'图片URL：' , <input type='url' className='longInput' value={state[i]} onClick={({target})=>target.select()} />],
             btns: [
                 ['关闭', ()=>{tip(null)}]
             ]
         });
     }
-    const [_image,__image]=React.useState([]);
     return <div className='folder'>
     <input type='checkbox' id='Images' className='switch' />
     <label for='Images' className='arrow' />
     图片资源上传
     <ul className='list'>
         <li onClick={Create}>+ 新建</li>
-		{_image.map((v,i)=>(<li onClick={View} data-index={i} key={`Image_${i}`}>{`Image_${i}`}</li>))}
+		{state.map((v,i)=>(<li onClick={View} data-index={i} key={`Image_${i}`}>{`Image_${i}`}</li>))}
     </ul>
 </div>
 }
 
-function Output({states:{_Materials, _Types, _Objects}}){
-	return <div className='folder'></div>
+function Output({states:{_Materials, _Types, _Objects, _info, _image}, tip}){
+	function Click(){
+		const Materials=new Map(),
+			Objs=new Map();
+		_Objects.forEach(v=>{
+			if(Objs.has(v.proto)){
+				Objs.get(v.proto).push(v.name);
+				Objs.set(v.name,[]);
+			}else{
+				Objs.set(v.proto,[v.name]);
+				Objs.set(v.name,[]);
+				if(Materials.has(_Types.get(v.proto).material)) Materials.get(_Types.get(v.proto).material).push(v.proto);
+				else Materials.set(_Types.get(v.proto).material,[v.proto]);
+			}
+		});
+		let text=['import * as AMC from \'AMC\' \r\nconst '],first=0;
+		Materials.forEach((v,i)=>{
+			const val=_Materials.get(i);
+			if(val.parent) text.push(`,\r\n${i}=${val.parent}.clone(${val.attr})`);
+			else text.push(`${first++?',\r\n':''}${i}=new AMC.Material('img/texture/atlas_${i}.png',${val.row},${val.col})`);
+		});
+		Materials.forEach((v,i)=>{
+			//v: [Types]
+			v.forEach((vv=>{
+				//vv: Type
+				const val=_Types.get(vv);
+				text.push(`,\r\n${vv}=AMC.${val.type}([${val.size.join(',')}],${i}.getUV([${val.uv.map(vvv=>`[${vvv.join(',')}]`).join(',')}]))`)
+				Objs.get(vv).forEach(add);
+				function add(name, mode){
+					const val2=_Objects.get(name);
+					text.push(mode!==undefined?`,\r\n${name}=new ${val2.proto}([${val2.pos.join(',')}])`:`\r\n.clone([${val2.pos.join(',')}])`);
+					val2.move.reduce((prev,curr)=>prev&&curr) && text.push(`.move(${val2.move.join(',')})`);
+					val2.rotate.reduce((prev,curr)=>prev&&curr) && text.push(`.rotate(${val2.rotate.join(',')})`);
+					val2.info[0] && text.push(`.info('${val2.info[0]}','${val2.info[1]}','${val2.info[2]?`img/Image_${_image.reduce((prev,curr,i)=>(prev===null&&curr!==val2.info[2]?i:prev),null)}.png`:''}')`);
+					if(Objs.get(name).length)Objs.get(name).forEach(vvv=>add(vvv));
+				}
+			}));
+		});
+		text.push(';\r\n'+(_info?'\r\nAMC.showInfo();':''));
+		const htmlText=['<!DOCTYPE html>',
+			`<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+			<link rel="stylesheet" type="text/css" href="../../style/main.css">
+			<html><head><title>Auto Page</title></head>
+			<body>
+			  <a title="View on Github" href="https://github.com/CJL233/AnimateMinecraft/tree/main/examples/altar"><svg style="margin: 0.5rem;position: absolute;right: 0;" height="32" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="32" data-view-component="true" class="octicon octicon-mark-github v-align-middle">
+				<path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+			</svg></a>
+			</body>
+			<script type="importmap">
+			{
+			  "imports": {
+				"AMC": "../../jsm/AnimateMC.js",
+				  "three": "../../jsm/three.module.js",
+				"OrbitControls": "../../jsm/OrbitControls.js",
+				"WebGL": "../../jsm/WebGL.js"
+				  //"three": "https://unpkg.com/three@0.143.0/build/three.module.js",
+				//"OrbitControls": "https://unpkg.com/three@0.143.0/examples/jsm/controls/OrbitControls.js",
+				//"WebGL": "https://unpkg.com/three@0.143.0/examples/jsm/capabilities/WebGL.js"
+			  }
+			}
+			</script>
+			<script type='module' src="index.js"></script>
+			</html>`];
+		tip({
+			title: '导出文件',
+			inner: <ul className='fileList'><li>📁img</li>
+				<ul className='fileList'>
+					<li>📁texture</li>
+					<ul className='fileList'>
+						{Array.from(_Materials).map((v)=>v[1].parent?null:<li><a download={`atlas_${v[0]}.png`} ref={(elem)=>(elem&&v[1].canvas.toBlob(blob=>elem.href=URL.createObjectURL(blob)))}>📄atlas_{v[0]}.png</a></li>)}
+					</ul>
+					{_image.map((v,i)=><li ><a download={`Image_${i}.png`} href={v}>Image_{i}.png</a></li>)}
+				</ul>
+				<li><a download={'index.js'} href={URL.createObjectURL(new Blob(text))} >📄index.js</a></li>
+				<li><a download={'index.html'} href={URL.createObjectURL(new Blob(htmlText))} >📄index.html</a></li>
+			</ul>,
+			btns: [
+				['关闭', ()=>{tip(null)}]
+			]
+		});
+	}
+	return <div id='Output' onClick={Click}></div>
 }
 
 function Menu({states:{_Materials, _Types, _Objects}, _states:{__Materials, __Types, __Objects}, tip}){
-	const [_info, __info]=React.useState(false);
+	const [_info, __info]=React.useState(false),
+		[_image,__image]=React.useState([]);
 	return <div id='LeftBar'>
 		<div id='logo'>BuildTool</div>
 		<Materials state={_Materials} changeState={__Materials} tip={tip} />
 		<Types state={_Types} changeState={__Types} state2={_Materials} tip={tip} />
 		<Objects state={_Objects} changeState={__Objects} state2={_Types} tip={tip} />
 		<Info state={_info} changeState={__info} />
-        <Images tip={tip} />
-		<Output states={{_Materials, _Types, _Objects}}/>
+        <Images state={_image} changeState={__image} tip={tip} />
+		<Output states={{_Materials, _Types, _Objects, _info, _image}} tip={tip} />
 	</div>
 }
 

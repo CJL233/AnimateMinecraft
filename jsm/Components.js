@@ -88,7 +88,7 @@ function Materials(_ref) {
 					var img = new Image();
 					img.src = URL.createObjectURL(fileInput.files.item(i));
 					img.onload = function () {
-						if (typeof index !== 'number') source.ctx.drawImage(img, source.count++ % source.col * source.size, parseInt(source.count / source.col) * source.size);else source.ctx.drawImage(img, index++ % source.col * source.size, parseInt(index / source.col) * source.size);
+						if (typeof index !== 'number') source.ctx.drawImage(img, source.count % source.col * source.size, parseInt(source.count++ / source.col) * source.size);else source.ctx.drawImage(img, index % source.col * source.size, parseInt(index++ / source.col) * source.size);
 						img.onload = null;
 						source.value.material.map.needsUpdate = true;
 					};
@@ -126,6 +126,7 @@ function Materials(_ref) {
 					var obj = {
 						name: name,
 						parent: val.name,
+						attr: elem.querySelector('#attr').value,
 						value: val.value.clone(JSON.parse(elem.querySelector('#attr').value || '{}'))
 					};
 					window.varNames.add(name);
@@ -328,7 +329,7 @@ function Types(_ref4) {
 				val.type,
 				React.createElement('br', null),
 				'\u5C3A\u5BF8\uFF1A',
-				elem.value = val.size.join(' x '),
+				val.size.join(' x '),
 				' ',
 				React.createElement('br', null),
 				'\u6750\u8D28\uFF1A',
@@ -354,7 +355,7 @@ function Types(_ref4) {
 				}
 				val.uv = uv;
 				var newUV = state2.get(val.material).value.getUV(uv);
-				val.value = AMC[val.type](size, newUV);
+				val.value = AMC[val.type](val.size, newUV);
 				val.children.forEach(function (v) {
 					v.value.obj.geometry.attributes.uv.array = newUV;
 					v.value.obj.geometry.attributes.uv.needsUpdate = true;
@@ -646,15 +647,17 @@ function Info(_ref14) {
 }
 
 function Images(_ref15) {
-	var tip = _ref15.tip;
+	var state = _ref15.state,
+	    changeState = _ref15.changeState,
+	    tip = _ref15.tip;
 
 	function Create() {
 		var fileInput = document.createElement('input');
 		fileInput.type = 'file';
 		fileInput.accept = 'image/*';
 		fileInput.onchange = function () {
-			_image.push(URL.createObjectURL(fileInput.files.item(0)));
-			__image(_image.slice());
+			state.push(URL.createObjectURL(fileInput.files.item(0)));
+			changeState(state.slice());
 			fileInput.onchange = null;
 		};
 		fileInput.click();
@@ -665,7 +668,7 @@ function Images(_ref15) {
 		var i = Number(target.getAttribute('data-index'));
 		tip({
 			title: 'Image_' + i,
-			inner: [React.createElement('img', { style: { width: '100%' }, src: _image[i] }), React.createElement('br', null), '图片URL：', React.createElement('input', { type: 'url', className: 'longInput', value: _image[i], onClick: function onClick(_ref17) {
+			inner: [React.createElement('img', { style: { width: '100%' }, src: state[i] }), React.createElement('br', null), '图片URL：', React.createElement('input', { type: 'url', className: 'longInput', value: state[i], onClick: function onClick(_ref17) {
 					var target = _ref17.target;
 					return target.select();
 				} })],
@@ -674,12 +677,6 @@ function Images(_ref15) {
 			}]]
 		});
 	}
-
-	var _React$useState5 = React.useState([]),
-	    _React$useState6 = _slicedToArray(_React$useState5, 2),
-	    _image = _React$useState6[0],
-	    __image = _React$useState6[1];
-
 	return React.createElement(
 		'div',
 		{ className: 'folder' },
@@ -694,7 +691,7 @@ function Images(_ref15) {
 				{ onClick: Create },
 				'+ \u65B0\u5EFA'
 			),
-			_image.map(function (v, i) {
+			state.map(function (v, i) {
 				return React.createElement(
 					'li',
 					{ onClick: View, 'data-index': i, key: 'Image_' + i },
@@ -709,9 +706,137 @@ function Output(_ref18) {
 	var _ref18$states = _ref18.states,
 	    _Materials = _ref18$states._Materials,
 	    _Types = _ref18$states._Types,
-	    _Objects = _ref18$states._Objects;
+	    _Objects = _ref18$states._Objects,
+	    _info = _ref18$states._info,
+	    _image = _ref18$states._image,
+	    tip = _ref18.tip;
 
-	return React.createElement('div', { className: 'folder' });
+	function Click() {
+		var Materials = new Map(),
+		    Objs = new Map();
+		_Objects.forEach(function (v) {
+			if (Objs.has(v.proto)) {
+				Objs.get(v.proto).push(v.name);
+				Objs.set(v.name, []);
+			} else {
+				Objs.set(v.proto, [v.name]);
+				Objs.set(v.name, []);
+				if (Materials.has(_Types.get(v.proto).material)) Materials.get(_Types.get(v.proto).material).push(v.proto);else Materials.set(_Types.get(v.proto).material, [v.proto]);
+			}
+		});
+		var text = ['import * as AMC from \'AMC\' \r\nconst '],
+		    first = 0;
+		Materials.forEach(function (v, i) {
+			var val = _Materials.get(i);
+			if (val.parent) text.push(',\r\n' + i + '=' + val.parent + '.clone(' + val.attr + ')');else text.push('' + (first++ ? ',\r\n' : '') + i + '=new AMC.Material(\'img/texture/atlas_' + i + '.png\',' + val.row + ',' + val.col + ')');
+		});
+		Materials.forEach(function (v, i) {
+			//v: [Types]
+			v.forEach(function (vv) {
+				//vv: Type
+				var val = _Types.get(vv);
+				text.push(',\r\n' + vv + '=AMC.' + val.type + '([' + val.size.join(',') + '],' + i + '.getUV([' + val.uv.map(function (vvv) {
+					return '[' + vvv.join(',') + ']';
+				}).join(',') + ']))');
+				Objs.get(vv).forEach(add);
+				function add(name, mode) {
+					var val2 = _Objects.get(name);
+					text.push(mode !== undefined ? ',\r\n' + name + '=new ' + val2.proto + '([' + val2.pos.join(',') + '])' : '\r\n.clone([' + val2.pos.join(',') + '])');
+					val2.move.reduce(function (prev, curr) {
+						return prev && curr;
+					}) && text.push('.move(' + val2.move.join(',') + ')');
+					val2.rotate.reduce(function (prev, curr) {
+						return prev && curr;
+					}) && text.push('.rotate(' + val2.rotate.join(',') + ')');
+					val2.info[0] && text.push('.info(\'' + val2.info[0] + '\',\'' + val2.info[1] + '\',\'' + (val2.info[2] ? 'img/Image_' + _image.reduce(function (prev, curr, i) {
+						return prev === null && curr !== val2.info[2] ? i : prev;
+					}, null) + '.png' : '') + '\')');
+					if (Objs.get(name).length) Objs.get(name).forEach(function (vvv) {
+						return add(vvv);
+					});
+				}
+			});
+		});
+		text.push(';\r\n' + (_info ? '\r\nAMC.showInfo();' : ''));
+		var htmlText = ['<!DOCTYPE html>', '<meta charset="utf-8">\n\t\t\t<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n\t\t\t<link rel="stylesheet" type="text/css" href="../../style/main.css">\n\t\t\t<html><head><title>Auto Page</title></head>\n\t\t\t<body>\n\t\t\t  <a title="View on Github" href="https://github.com/CJL233/AnimateMinecraft/tree/main/examples/altar"><svg style="margin: 0.5rem;position: absolute;right: 0;" height="32" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="32" data-view-component="true" class="octicon octicon-mark-github v-align-middle">\n\t\t\t\t<path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>\n\t\t\t</svg></a>\n\t\t\t</body>\n\t\t\t<script type="importmap">\n\t\t\t{\n\t\t\t  "imports": {\n\t\t\t\t"AMC": "../../jsm/AnimateMC.js",\n\t\t\t\t  "three": "../../jsm/three.module.js",\n\t\t\t\t"OrbitControls": "../../jsm/OrbitControls.js",\n\t\t\t\t"WebGL": "../../jsm/WebGL.js"\n\t\t\t\t  //"three": "https://unpkg.com/three@0.143.0/build/three.module.js",\n\t\t\t\t//"OrbitControls": "https://unpkg.com/three@0.143.0/examples/jsm/controls/OrbitControls.js",\n\t\t\t\t//"WebGL": "https://unpkg.com/three@0.143.0/examples/jsm/capabilities/WebGL.js"\n\t\t\t  }\n\t\t\t}\n\t\t\t</script>\n\t\t\t<script type=\'module\' src="index.js"></script>\n\t\t\t</html>'];
+		tip({
+			title: '导出文件',
+			inner: React.createElement(
+				'ul',
+				{ className: 'fileList' },
+				React.createElement(
+					'li',
+					null,
+					'\uD83D\uDCC1img'
+				),
+				React.createElement(
+					'ul',
+					{ className: 'fileList' },
+					React.createElement(
+						'li',
+						null,
+						'\uD83D\uDCC1texture'
+					),
+					React.createElement(
+						'ul',
+						{ className: 'fileList' },
+						Array.from(_Materials).map(function (v) {
+							return v[1].parent ? null : React.createElement(
+								'li',
+								null,
+								React.createElement(
+									'a',
+									{ download: 'atlas_' + v[0] + '.png', ref: function ref(elem) {
+											return elem && v[1].canvas.toBlob(function (blob) {
+												return elem.href = URL.createObjectURL(blob);
+											});
+										} },
+									'\uD83D\uDCC4atlas_',
+									v[0],
+									'.png'
+								)
+							);
+						})
+					),
+					_image.map(function (v, i) {
+						return React.createElement(
+							'li',
+							null,
+							React.createElement(
+								'a',
+								{ download: 'Image_' + i + '.png', href: v },
+								'Image_',
+								i,
+								'.png'
+							)
+						);
+					})
+				),
+				React.createElement(
+					'li',
+					null,
+					React.createElement(
+						'a',
+						{ download: 'index.js', href: URL.createObjectURL(new Blob(text)) },
+						'\uD83D\uDCC4index.js'
+					)
+				),
+				React.createElement(
+					'li',
+					null,
+					React.createElement(
+						'a',
+						{ download: 'index.html', href: URL.createObjectURL(new Blob(htmlText)) },
+						'\uD83D\uDCC4index.html'
+					)
+				)
+			),
+			btns: [['关闭', function () {
+				tip(null);
+			}]]
+		});
+	}
+	return React.createElement('div', { id: 'Output', onClick: Click });
 }
 
 function Menu(_ref19) {
@@ -725,10 +850,14 @@ function Menu(_ref19) {
 	    __Objects = _ref19$_states.__Objects,
 	    tip = _ref19.tip;
 
-	var _React$useState7 = React.useState(false),
+	var _React$useState5 = React.useState(false),
+	    _React$useState6 = _slicedToArray(_React$useState5, 2),
+	    _info = _React$useState6[0],
+	    __info = _React$useState6[1],
+	    _React$useState7 = React.useState([]),
 	    _React$useState8 = _slicedToArray(_React$useState7, 2),
-	    _info = _React$useState8[0],
-	    __info = _React$useState8[1];
+	    _image = _React$useState8[0],
+	    __image = _React$useState8[1];
 
 	return React.createElement(
 		'div',
@@ -742,8 +871,8 @@ function Menu(_ref19) {
 		React.createElement(Types, { state: _Types, changeState: __Types, state2: _Materials, tip: tip }),
 		React.createElement(Objects, { state: _Objects, changeState: __Objects, state2: _Types, tip: tip }),
 		React.createElement(Info, { state: _info, changeState: __info }),
-		React.createElement(Images, { tip: tip }),
-		React.createElement(Output, { states: { _Materials: _Materials, _Types: _Types, _Objects: _Objects } })
+		React.createElement(Images, { state: _image, changeState: __image, tip: tip }),
+		React.createElement(Output, { states: { _Materials: _Materials, _Types: _Types, _Objects: _Objects, _info: _info, _image: _image }, tip: tip })
 	);
 }
 
