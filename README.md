@@ -18,6 +18,7 @@ mcmod上的教程只能用markdown写，对于一个3d沙盒游戏来说还是�
 
 ---
 # 制作模型
+[小白专用构建工具](https://cjl233.github.io/AnimateMinecraft/buildTool/)
 
 制作一个模型需要自制两个文件：
 * 模型贴图( atlas.png )
