@@ -29,9 +29,9 @@ redstone=AMC.Attachment(
         ['textureOffset', null , [0,3]]
     ]}
 ),
-redstone_839=new redstone([1,2,0]).rotateX(-1.57).moveY(-0.49).set('state',1)
+redstone_839=new redstone([1,2,0]).rotateX(-1.57).moveY(-0.49).set('state',0)
 .clone([1,1,1]).rotate(-1.57,0,-1.57).moveY(-0.49),
-redstone_849=new redstone([0,2,0]).rotateX(-1.57).moveY(-0.49).set('state',3)
+redstone_849=new redstone([0,2,0]).rotateX(-1.57).moveY(-0.49).set('state',2)
 .clone([-1,2,0]).rotateX(-1.57).moveY(-0.49)
 .clone([-2,2,0]).rotateX(-1.57).moveY(-0.49)
 .clone([0,0,1]).rotateX(-1.57).moveY(-0.49)
