@@ -14,7 +14,8 @@ mcmod上的教程只能用markdown写，对于一个3d沙盒游戏来说还是�
 * 红石自动化血魔法祭坛（极简版）
   * [mcmod](https://www.mcmod.cn/post/2343.html)
   * [AMC](https://cjl233.github.io/AnimateMinecraft/examples/altar/)
-
+* TNT复制机
+  * [AMC](https://cjl233.github.io/AnimateMinecraft/examples/tnt/)
 
 ---
 # 制作模型
